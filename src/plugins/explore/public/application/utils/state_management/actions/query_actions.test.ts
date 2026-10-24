@@ -1395,6 +1395,35 @@ describe('Query Actions - Comprehensive Test Suite', () => {
       expect(mockServices.tabRegistry.getTab).toHaveBeenCalledWith('explore_visualization_tab');
     });
 
+    // The tab queries start after the main queries settle, and the overall status middleware
+    // clears the flag on settling. Without restoring it, Stop vanishes while a slow tab query runs.
+    it('restores the user-initiated flag before starting tab queries', async () => {
+      mockGetState.mockReturnValue({
+        query: { query: 'source=logs', language: 'PPL', dataset: null },
+        ui: { activeTabId: 'explore_visualization_tab' },
+        results: {},
+        legacy: { interval: '1h' },
+        queryEditor: { breakdownField: undefined, queryStatusMap: {} },
+      });
+      (mockServices.tabRegistry.getTab as jest.Mock).mockImplementation((tabId: string) =>
+        tabId === 'explore_visualization_tab'
+          ? { prepareQuery: jest.fn().mockReturnValue('viz-query') }
+          : null
+      );
+      mockDispatch.mockClear();
+
+      await executeQueries({ services: mockServices })(mockDispatch, mockGetState, undefined);
+
+      const calls = mockDispatch.mock.calls.map(([a]) => a);
+      const flagIdx = calls
+        .map((a, i) => (a?.type === 'queryEditor/setHasUserInitiatedQuery' ? i : -1))
+        .filter((i) => i >= 0);
+      // Once for the main queries, once more before the tab query is dispatched.
+      expect(flagIdx).toHaveLength(2);
+      expect(calls[flagIdx[1]].payload).toBe(true);
+      expect(flagIdx[1]).toBeLessThan(calls.length - 1);
+    });
+
     it('runs nothing at all for a blank SQL query', async () => {
       mockDispatch.mockClear();
 

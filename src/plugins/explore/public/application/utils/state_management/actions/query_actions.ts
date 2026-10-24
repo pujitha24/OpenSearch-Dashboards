@@ -433,7 +433,8 @@ export const executeQueries = createAsyncThunk<
   // load, a time-range or dataset change, an interval change, as well as the editor's Run. Setting
   // it only in `onEditorRun` left those other paths running a cancellable query with no way to
   // cancel it. Cleared by `overall_status_middleware` when the queries settle.
-  if (needsDataTableQuery || needsHistogramQuery) {
+  const isUserInitiatedRun = needsDataTableQuery || needsHistogramQuery;
+  if (isUserInitiatedRun) {
     dispatch(setHasUserInitiatedQuery(true));
   }
 
@@ -678,6 +679,12 @@ export const executeQueries = createAsyncThunk<
     activeTabCacheKey !== visualizationTabCacheKey &&
     activeTabCacheKey !== defaultCacheKey &&
     !results[activeTabCacheKey];
+
+  // The tab queries start after the main queries settle, and that settling cleared the flag.
+  // Restore it so Stop stays offered while they run.
+  if (isUserInitiatedRun && (needsVisualizationTabQuery || needsActiveTabQuery)) {
+    dispatch(setHasUserInitiatedQuery(true));
+  }
 
   const tabPromises = [];
   // Execute visualization tab query independently
