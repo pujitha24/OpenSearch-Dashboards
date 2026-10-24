@@ -203,6 +203,39 @@ describe('span_transforms', () => {
       expect(span.input).toBe('hello');
       expect(span.output).toBe('world');
     });
+
+    it('falls back to gen_ai.tool.call arguments/result for execute_tool spans', () => {
+      const span = traceHitToAgentSpan(
+        {
+          spanId: 't1',
+          attributes: {
+            'gen_ai.operation.name': 'execute_tool',
+            'gen_ai.tool.call.arguments': '{"city":"Vancouver"}',
+            'gen_ai.tool.call.result': { temp: '12C' },
+          },
+        } as any,
+        0
+      );
+
+      expect(span.input).toBe('{"city":"Vancouver"}');
+      expect(span.output).toBe('{"temp":"12C"}');
+    });
+
+    it('prefers message attributes over tool call attributes', () => {
+      const span = traceHitToAgentSpan(
+        {
+          spanId: 't2',
+          attributes: {
+            'gen_ai.input.messages': 'hello',
+            'gen_ai.tool.call.arguments': 'args',
+          },
+        } as any,
+        0
+      );
+
+      expect(span.input).toBe('hello');
+      expect(span.output).toBe('—');
+    });
   });
 
   describe('unflattenSource', () => {

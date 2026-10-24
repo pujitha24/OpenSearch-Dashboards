@@ -103,7 +103,9 @@ const normalizeMessageValue = (value: unknown): string | undefined => {
   return String(value);
 };
 
-const resolveMessageValue = (value: unknown): string => normalizeMessageValue(value) ?? '—';
+// `execute_tool` spans carry their payload in `gen_ai.tool.call.*` instead of message attributes.
+const resolveMessageValue = (value: unknown, toolFallback?: unknown): string =>
+  normalizeMessageValue(value) ?? normalizeMessageValue(toolFallback) ?? '—';
 
 export const traceHitToAgentSpan = (hit: TraceHit, index: number): AgentSpan => {
   const attrs = hit.attributes ? unflattenSource(hit.attributes) : ({} as any);
@@ -125,8 +127,11 @@ export const traceHitToAgentSpan = (hit: TraceHit, index: number): AgentSpan => 
     genAiInputTokens: attrs?.gen_ai?.usage?.input_tokens || null,
     genAiOutputTokens: attrs?.gen_ai?.usage?.output_tokens || null,
     genAiTotalTokens: attrs?.gen_ai?.usage?.total_tokens || null,
-    input: resolveMessageValue(attrs?.gen_ai?.input?.messages),
-    output: resolveMessageValue(attrs?.gen_ai?.output?.messages),
+    input: resolveMessageValue(
+      attrs?.gen_ai?.input?.messages,
+      attrs?.gen_ai?.tool?.call?.arguments
+    ),
+    output: resolveMessageValue(attrs?.gen_ai?.output?.messages, attrs?.gen_ai?.tool?.call?.result),
     rawDocument: hit as Record<string, unknown>,
   };
 };
