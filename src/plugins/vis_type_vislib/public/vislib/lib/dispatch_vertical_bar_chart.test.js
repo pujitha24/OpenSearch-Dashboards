@@ -29,6 +29,7 @@
  */
 
 import mockDispatchDataD3 from '../../fixtures/dispatch_bar_chart_d3.json';
+import d3 from 'd3';
 import { Dispatch } from './dispatch';
 import mockdataPoint from '../../fixtures/dispatch_bar_chart_data_point.json';
 import mockConfigPercentage from '../../fixtures/dispatch_bar_chart_config_percentage.json';
@@ -66,5 +67,22 @@ describe('Vislib event responses dispatcher', () => {
     const dispatch = new Dispatch(handlerMock);
     const actual = dispatch.eventResponse(dataPoint, 0);
     expect(actual.isPercentageMode).toBeFalsy();
+  });
+
+  test('resolves chart data via ownerSVGElement when nearestViewportElement is unavailable', () => {
+    const originalTarget = d3.event.target;
+    // Firefox: no nearestViewportElement, and the bar's own datum has a string `series`
+    d3.event.target = {
+      ownerSVGElement: { __data__: mockDispatchDataD3 },
+      __data__: { series: 'Count' },
+    };
+    try {
+      const dispatch = new Dispatch(getHandlerMock(mockConfigPercentage));
+      const actual = dispatch.eventResponse(mockdataPoint, 0);
+      expect(Array.isArray(actual.series)).toBe(true);
+      expect(actual.isPercentageMode).toBeTruthy();
+    } finally {
+      d3.event.target = originalTarget;
+    }
   });
 });

@@ -184,9 +184,9 @@ export class Dispatch {
   clickEventResponse(d, props = {}) {
     let isSlices = props.isSlices;
     if (isSlices === undefined) {
-      const _data = d3.event.target.nearestViewportElement
-        ? d3.event.target.nearestViewportElement.__data__
-        : d3.event.target.__data__;
+      const { target } = d3.event;
+      const viewport = target.nearestViewportElement || target.ownerSVGElement;
+      const _data = viewport ? viewport.__data__ : target.__data__;
       isSlices = !!(_data && _data.slices);
     }
 
@@ -240,9 +240,11 @@ export class Dispatch {
    */
   eventResponse(d, i) {
     const datum = d._input || d;
-    const data = d3.event.target.nearestViewportElement
-      ? d3.event.target.nearestViewportElement.__data__
-      : d3.event.target.__data__;
+    // `nearestViewportElement` was removed from SVG2 and is missing in recent Firefox versions,
+    // so fall back to `ownerSVGElement` to find the chart's <svg> rather than the datum's own node
+    const { target } = d3.event;
+    const viewport = target.nearestViewportElement || target.ownerSVGElement;
+    const data = viewport ? viewport.__data__ : target.__data__;
     const label = d.label ? d.label : d.series || 'Count';
     const isSeries = !!(data && data.series);
     const isSlices = !!(data && data.slices);
